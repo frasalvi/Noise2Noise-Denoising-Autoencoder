@@ -1,6 +1,7 @@
 # From torch: All these modules are either specified in the project file, or confirmed with TA's
 from torch import ones, empty, cat, arange, load, float, set_grad_enabled
 from torch.nn.functional import fold, unfold
+from functools import reduce
 
 set_grad_enabled(False)
 
@@ -34,13 +35,21 @@ def uniform_initialization(tensor, kind='xavier', gain=1):
     Returns:
         tensor (torch.tensor): initialized weight tensor.
     '''
-    out_features, in_features = tensor.shape
+    out_size = tensor.shape[0]
+    in_size = tensor.shape[1]
+
+    # Conv layer
+    if tensor.dim() > 2:
+        kernel_size = reduce(lambda x, y: x*y, tensor.shape[2:])
+        out_size *= kernel_size
+        in_size *= kernel_size
+
     if(kind == 'xavier'):
-        a = gain * (6 / (in_features + out_features))**0.5
+        a = gain * (6 / (in_size + out_size))**0.5
     elif(kind == 'he'):
-        a = gain * (3 / in_features)**0.5
+        a = gain * (3 / in_size)**0.5
     elif(kind == 'pytorch'):
-        a = 1 / in_features**0.5
+        a = 1 / in_size**0.5
     else:
         raise ValueError('invalid initialization option')
 
