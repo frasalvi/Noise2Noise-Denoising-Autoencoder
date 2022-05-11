@@ -100,9 +100,10 @@ class Conv2d():
     self.out_channels = out_channels
     self.kernel_size = kernel_size
 
-    # Weight initialization. Replace this with sth. more sophisticated later
-    self.weight = empty(out_channels,in_channels,kernel_size[0],kernel_size[1]).normal_()
-    self.bias = empty(out_channels).normal_()
+    # Weight initialization.
+    self.weight = empty(out_channels,in_channels,kernel_size[0],kernel_size[1])
+    self.bias = empty(out_channels)
+    uniform_initialization(self.weight, kind='pytorch')
   
   def forward(self, *input):
     self.input = input[0]
