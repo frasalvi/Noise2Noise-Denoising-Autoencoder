@@ -15,6 +15,8 @@ class Module(object):
         raise NotImplementedError 
     def param (self):
         return []
+    def __call__(self, *input):
+        return self.forward(*input)
 
 
 def uniform_initialization(tensor, kind='xavier', gain=1):
