@@ -107,6 +107,9 @@ class Conv2d():
   
   def forward(self, *input):
     self.input = input[0]
+    assert self.input.dim() == 3 or self.input.dim() == 4
+    if(self.input.dim() != 4):
+        self.input = self.input[None, :]
     batch_size = self.input.shape[0]
 
     unfolded = unfold(self.input, kernel_size=self.kernel_size)
