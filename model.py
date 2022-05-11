@@ -80,7 +80,7 @@ class Linear(Module):
                 (self.bias, self.bias.grad)]
 
 
-class Conv2d():
+class Conv2d(Module):
   
   def  __init__(self, in_channels, out_channels, kernel_size, stride=1, 
                 padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros', 
@@ -123,11 +123,11 @@ class Conv2d():
     input_unfolded = unfold(self.input, kernel_size=self.kernel_size)
     gradwrtoutput_unfolded = gradwrtoutput[0].view(output_size)
     kernel = self.weight.view(self.out_channels, -1)
-    print('unfolded gradient w.r.t. output shape: ',gradwrtoutput_unfolded.shape)
-    print('unfolded input: ',input_unfolded.shape)
-    print('unfolded kernel shape: ',kernel.shape)
+    # print('unfolded gradient w.r.t. output shape: ',gradwrtoutput_unfolded.shape)
+    # print('unfolded input: ',input_unfolded.shape)
+    # print('unfolded kernel shape: ',kernel.shape)
 
-    print('grad wrt input shape: ',(kernel.transpose(0,1) @ gradwrtoutput_unfolded).shape)
+    # print('grad wrt input shape: ',(kernel.transpose(0,1) @ gradwrtoutput_unfolded).shape)
 
     self.weight.grad = (gradwrtoutput_unfolded @ input_unfolded.transpose(1,2)).sum(axis=0).view(self.weight.shape)
     self.bias.grad = gradwrtoutput_unfolded.sum(axis=(0,2)).view(self.bias.shape)
