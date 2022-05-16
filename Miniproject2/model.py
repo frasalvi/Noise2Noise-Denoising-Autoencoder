@@ -117,13 +117,13 @@ class Conv2d(Module):
 
     def forward(self, *input):
         # Get shapes
-        
+
         self.input = input[0]
         assert self.input.dim() == 3 or self.input.dim() == 4
         if(self.input.dim() != 4):
             self.input = self.input[None, :]
         self.batch_size = self.input.shape[0]
-        
+
         # Output shape (in 1D) = floor((H + 2P - D*(K-1) - 1)/S + 1)
         outH = floor((self.input.shape[2] + 2*self.padding - self.dilation * (self.kernel_size[0] - 1) -1 ) / self.stride + 1)
         outW = floor((self.input.shape[3] + 2*self.padding - self.dilation * (self.kernel_size[1] - 1) -1 ) / self.stride + 1)
@@ -149,7 +149,7 @@ class Conv2d(Module):
     def param(self):
         return [(self.weight, self.weight.grad),
                 (self.bias, self.bias.grad)]
-    
+
 class ReLU(Module):
     def __init__(self):
         super().__init__()
@@ -163,7 +163,7 @@ class ReLU(Module):
     def backward(self, *gradwrtoutput):
         grad_output = gradwrtoutput[0]
         return self.is_input_bigger_than_zero * grad_output
-    
+
     def param(self):
         return []
 
@@ -185,7 +185,7 @@ class Sigmoid(Module):
         grad_output = gradwrtoutput[0]
         layer_grad = self.activations * (1 - self.activations)
         return layer_grad * grad_output
-    
+
     def param(self):
         return []
 
@@ -210,7 +210,7 @@ class Sequential(Module):
         for layer in self.layers[::-1]:
             x = layer.backward(x)
         return x
-    
+
     def param(self):
         parameter_list = [layer.param() for layer in self.layers]
         return flatten(parameter_list)
@@ -233,7 +233,7 @@ class NNupsampling(Module):
         unfolded = unfold(gradwrtoutput[0], kernel_size=self.scale_factor, stride=self.scale_factor)
         summed = unfolded.view(self.input.shape[0], self.input.shape[1], self.scale_factor**2, unfolded.shape[-1]).sum(dim=2)
         return summed.view(self.input.shape)
-    
+
     def param(self):
         return []
 
