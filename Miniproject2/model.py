@@ -137,30 +137,34 @@ class ReLU(Module):
     def __init__(self):
         super().__init__()
         self.is_input_bigger_than_zero = None
+
     def forward(self, *input):
         real_input = input[0]
         self.is_input_bigger_than_zero = (real_input > 0).type(float)
         return real_input*self.is_input_bigger_than_zero
-    def backward(self, *gradwrtoutput):
-        real_input = gradwrtoutput[0]
-        return self.is_input_bigger_than_zero*real_input
 
+    def backward(self, *gradwrtoutput):
+        grad_output = gradwrtoutput[0]
+        return self.is_input_bigger_than_zero * grad_output
 
 
 class Sigmoid(Module):
     def __init__(self):
         super().__init__()
         self.activations = None
+
     def forward(self, *input):
         real_input = input[0]
-        e_to_input = torch.exp(real_input)
-        activations = e_to_input / (1+e_to_input)
+        t = np.clip(real_input, -100, 100)
+        e_to_input = torch.exp(-t)
+        activations = 1 / (1 + e_to_input)
         self.activations = activations
         return activations
+
     def backward(self, *gradwrtoutput):
-        real_input = gradwrtoutput[0]
+        grad_output = gradwrtoutput[0]
         layer_grad = self.activations * (1 - self.activations)
-        return layer_grad*real_input
+        return layer_grad * grad_output
 
 
 class Sequential(Module):
