@@ -133,3 +133,48 @@ class Conv2d(Module):
     self.bias.grad = gradwrtoutput_unfolded.sum(axis=(0,2)).view(self.bias.shape)
     gradwrtinput_unfolded = (kernel.transpose(0,1) @ gradwrtoutput_unfolded)
     return fold(gradwrtinput_unfolded, output_size=self.input.shape[2:4], kernel_size=self.kernel_size)
+
+
+class ReLU(Module):
+    def __init__(self):
+        super().__init__()
+        self.is_input_bigger_than_zero = None
+    def forward(self, *input):
+        real_input = input[0]
+        self.is_input_bigger_than_zero = (real_input > 0).type(float)
+        return real_input*self.is_input_bigger_than_zero
+    def backward(self, *gradwrtoutput):
+        real_input = gradwrtoutput[0]
+        return self.is_input_bigger_than_zero*real_input
+
+
+
+class Sigmoid(Module):
+    def __init__(self):
+        super().__init__()
+        self.activations = None
+    def forward(self, *input):
+        real_input = input[0]
+        e_to_input = torch.exp(real_input)
+        activations = e_to_input / (1+e_to_input)
+        self.activations = activations
+        return activations
+    def backward(self, *gradwrtoutput):
+        real_input = gradwrtoutput[0]
+        layer_grad = self.activations * (1 - self.activations)
+        return layer_grad*real_input
+
+
+class Sequential(Module):
+    def __init__(self, *layers):
+        self.layers = layers
+    def forward(self, *input):
+        x = input
+        for layer in self.layers:
+            x = layer.forward(x)
+        return x
+    def backward(self, *gradwrtoutput):
+        x = gradwrtoutput
+        for layer in self.layers[::-1]:
+            x = layer.backward(x)
+        return x
