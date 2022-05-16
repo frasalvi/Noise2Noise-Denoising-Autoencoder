@@ -81,62 +81,8 @@ class Linear(Module):
         return [(self.weight, self.weight.grad),
                 (self.bias, self.bias.grad)]
 
-'''
 
 class Conv2d(Module):
-
-    def  __init__(self, in_channels, out_channels, kernel_size, stride=1,
-                padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros',
-                device=None, dtype=None):
-    # Implements 2D convolution.
-    # TO DO: change stride, padding, dilation and padding_mode.
-    # Check if kernel_size is correct
-        if type(kernel_size)==int:
-            kernel_size = (kernel_size,kernel_size)
-        elif (type(kernel_size)==tuple and len(kernel_size)==2):
-            pass
-        else:
-            raise ValueError('Invalid dimensions of kernel_size. It should be either an integer or a tuple of length 2.')
-
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.kernel_size = kernel_size
-
-        # Weight initialization.
-        self.weight = empty(out_channels,in_channels,kernel_size[0],kernel_size[1])
-        self.bias = empty(out_channels)
-        uniform_initialization(self.weight, kind='pytorch')
-
-    def forward(self, *input):
-        self.input = input[0]
-        assert self.input.dim() == 3 or self.input.dim() == 4
-        if(self.input.dim() != 4):
-            self.input = self.input[None, :]
-        batch_size = self.input.shape[0]
-
-        unfolded = unfold(self.input, kernel_size=self.kernel_size)
-        convolved = self.weight.view(self.out_channels, -1).unsqueeze(0) @ unfolded + self.bias.view(1, -1, 1).unsqueeze(0)
-        return convolved.view(batch_size, self.out_channels, self.input.shape[2] - self.kernel_size[0] + 1, self.input.shape[3] - self.kernel_size[1] + 1)
-
-    def backward(self, *gradwrtoutput):
-        batch_size = self.input.shape[0]
-        output_size = (batch_size, self.out_channels, (self.input.shape[2] - self.kernel_size[0] + 1)*(self.input.shape[3] - self.kernel_size[1] + 1))
-        input_unfolded = unfold(self.input, kernel_size=self.kernel_size)
-        gradwrtoutput_unfolded = gradwrtoutput[0].view(output_size)
-        kernel = self.weight.view(self.out_channels, -1)
-        # print('unfolded gradient w.r.t. output shape: ',gradwrtoutput_unfolded.shape)
-        # print('unfolded input: ',input_unfolded.shape)
-        # print('unfolded kernel shape: ',kernel.shape)
-
-        # print('grad wrt input shape: ',(kernel.transpose(0,1) @ gradwrtoutput_unfolded).shape)
-
-        self.weight.grad = (gradwrtoutput_unfolded @ input_unfolded.transpose(1,2)).sum(axis=0).view(self.weight.shape)
-        self.bias.grad = gradwrtoutput_unfolded.sum(axis=(0,2)).view(self.bias.shape)
-        gradwrtinput_unfolded = (kernel.transpose(0,1) @ gradwrtoutput_unfolded)
-        return fold(gradwrtinput_unfolded, output_size=self.input.shape[2:4], kernel_size=self.kernel_size)
-'''
-
-class Conv2d():
     def  __init__(self, in_channels, out_channels, kernel_size,
                 stride=1, padding=0, dilation=1):
         # Implements 2D convolution.
@@ -156,13 +102,18 @@ class Conv2d():
         self.stride = stride
 
         # Weight initialization. Replace this with sth. more sophisticated later
-        self.weight = empty(out_channels,in_channels,kernel_size[0],kernel_size[1]).normal_()
-        self.bias = empty(out_channels).normal_()
+        self.weight = empty(out_channels,in_channels,kernel_size[0],kernel_size[1])
+        self.bias = empty(out_channels)
+        uniform_initialization(self.weight, kind='pytorch')
 
     def forward(self, *input):
         # Get shapes
         self.input = input[0]
+        assert self.input.dim() == 3 or self.input.dim() == 4
+        if(self.input.dim() != 4):
+            self.input = self.input[None, :]
         self.batch_size = self.input.shape[0]
+        
         # Output shape (in 1D) = floor((H + 2P - D*(K-1) - 1)/S + 1)
         outH = floor((self.input.shape[2] + 2*self.padding - self.dilation * (self.kernel_size[0] - 1) -1 ) / self.stride + 1)
         outW = floor((self.input.shape[3] + 2*self.padding - self.dilation * (self.kernel_size[1] - 1) -1 ) / self.stride + 1)
