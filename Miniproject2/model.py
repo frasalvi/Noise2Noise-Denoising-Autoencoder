@@ -269,7 +269,7 @@ class MSE(Module):
         return (self.last_input_diff**2).mean()
 
     def backward(self, *gradwrtoutput):
-        preliminary_loss =  ( - 2/self.batch_size)*self.last_input_diff
+        preliminary_loss =  ( - 2/self.batch_size)*self.last_input_diff/self.last_input_diff.shape[1]
         if len(gradwrtoutput) != 1:
             return preliminary_loss
         return gradwrtoutput[0]*preliminary_loss
