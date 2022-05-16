@@ -1,4 +1,5 @@
 # From torch: All these modules are either specified in the project file, or confirmed with TA's
+from turtle import forward
 from torch import ones, zeros, empty, cat, arange, load, float, set_grad_enabled
 from torch.nn.functional import fold, unfold
 from functools import reduce
@@ -24,7 +25,7 @@ class Module(object):
         return self.forward(*input)
     def zero_grad(self):
         for param in self.param():
-            param[0].grad = 0
+            param[0].grad = zeros(param[0].grad.shape)
 
 
 def uniform_initialization(tensor, kind='pytorch', gain=1):
@@ -184,6 +185,9 @@ class Sigmoid(Module):
     def backward(self, *gradwrtoutput):
         grad_output = gradwrtoutput[0]
         layer_grad = self.activations * (1 - self.activations)
+        # print(type(layer_grad), type(grad_output))
+        # print(layer_grad.size, grad_output.size)
+        # print(layer_grad, grad_output)
         return layer_grad * grad_output
 
     def param(self):
@@ -193,20 +197,21 @@ class Sigmoid(Module):
 class Sequential(Module):
     def __init__(self, *layers):
         self.layers = layers
+        self.print_stuff = False
 
     def forward(self, *input):
         x = input[0]
         count = 0
         for layer in self.layers:
-            print("layer nr "+str(count))
-            print('Before layer: ',x.shape)
-            x = layer.forward(*x)
-            print('After layer: ',x.shape)
+            self.print_stuff and print("layer nr "+str(count))
+            self.print_stuff and print('Before layer: ',x.shape)
+            x = layer.forward(x)
+            self.print_stuff and print('After layer: ',x.shape)
             count += 1
         return x
 
     def backward(self, *gradwrtoutput):
-        x = gradwrtoutput
+        x = gradwrtoutput[0]
         for layer in self.layers[::-1]:
             x = layer.backward(x)
         return x
@@ -215,7 +220,7 @@ class Sequential(Module):
         parameter_list = [layer.param() for layer in self.layers]
         return flatten(parameter_list)
 
-class NNupsampling(Module):
+class NNUpsampling(Module):
     def  __init__(self, scale_factor=2):
         self.scale_factor = scale_factor
 
@@ -227,7 +232,7 @@ class NNupsampling(Module):
         return out
 
     def backward(self, *gradwrtoutput):
-        # The gradient of a NNupsampling layer is the sum of the upsampled elements in gradwrtoutput.
+        # The gradient of a NNUpsampling layer is the sum of the upsampled elements in gradwrtoutput.
         # Example: if scale_factor=2, the gradient is the sum of 2x2 areas in gradwrtoutput.
         # First unfold the matrix to easily take the sum
         unfolded = unfold(gradwrtoutput[0], kernel_size=self.scale_factor, stride=self.scale_factor)
@@ -259,3 +264,15 @@ class MSE(Module):
 
     def param(self):
         return []
+
+class Upsampling(Sequential):
+    def  __init__(self, in_channels, out_channels, kernel_size,
+                stride=1, padding=0, dilation=1, scale_factor=2):
+        super()
+
+        upsampling = NNUpsampling(scale_factor=scale_factor)
+        conv = Conv2d(in_channels=in_channels, out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=stride, padding=padding, dilation=dilation)
+        self.layers = [upsampling, conv]
+        self.print_stuff = False
