@@ -155,8 +155,8 @@ class Sigmoid(Module):
 
     def forward(self, *input):
         real_input = input[0]
-        t = np.clip(real_input, -100, 100)
-        e_to_input = torch.exp(-t)
+        t = real_input.clip(-100, 100)
+        e_to_input = (-t).exp()
         activations = 1 / (1 + e_to_input)
         self.activations = activations
         return activations
@@ -170,11 +170,13 @@ class Sigmoid(Module):
 class Sequential(Module):
     def __init__(self, *layers):
         self.layers = layers
+
     def forward(self, *input):
         x = input
         for layer in self.layers:
             x = layer.forward(x)
         return x
+
     def backward(self, *gradwrtoutput):
         x = gradwrtoutput
         for layer in self.layers[::-1]:
