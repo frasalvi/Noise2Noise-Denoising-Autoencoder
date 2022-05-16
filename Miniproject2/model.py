@@ -270,7 +270,7 @@ class MSE(Module):
         assert len(input[0]) == len(input[1])
         self.last_input_lenght = len(input[0])
         self.last_input_diff = (input[0] - input[1])
-        return sum(self.last_input_diff**2)/self.last_input_lenght
+        return (self.last_input_diff**2).mean()
 
     def backward(self, *gradwrtoutput):
         preliminary_loss =  ( - 2/self.last_input_lenght)*self.last_input_diff
