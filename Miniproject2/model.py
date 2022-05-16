@@ -13,7 +13,7 @@ class Module(object):
     def forward (self, *input):
         raise NotImplementedError
     def backward (self, *gradwrtoutput):
-        raise NotImplementedError 
+        raise NotImplementedError
     def param (self):
         return []
     def __call__(self, *input):
@@ -22,7 +22,7 @@ class Module(object):
 
 def uniform_initialization(tensor, kind='pytorch', gain=1):
     '''
-    Performs weight initialization by drawing from a Uniform distribution, 
+    Performs weight initialization by drawing from a Uniform distribution,
     according to the chosen method.
 
     Args:
@@ -68,7 +68,7 @@ class Linear(Module):
         self.input = input[0]
         output = self.input @ self.weight.T + self.bias
         return output
-    
+
     def backward(self, *gradwrtoutput):
         grad_output = gradwrtoutput[0]
         self.weight.grad = grad_output.T @ self.input
@@ -81,58 +81,56 @@ class Linear(Module):
 
 
 class Conv2d(Module):
-  
-  def  __init__(self, in_channels, out_channels, kernel_size, stride=1, 
-                padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros', 
+
+    def  __init__(self, in_channels, out_channels, kernel_size, stride=1,
+                padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros',
                 device=None, dtype=None):
     # Implements 2D convolution.
     # TO DO: change stride, padding, dilation and padding_mode.
-    
     # Check if kernel_size is correct
-    if type(kernel_size)==int:
-      kernel_size = (kernel_size,kernel_size)
-    elif (type(kernel_size)==tuple and len(kernel_size)==2):
-      pass
-    else:
-      raise ValueError('Invalid dimensions of kernel_size. It should be either an integer or a tuple of length 2.')
-   
-    self.in_channels = in_channels
-    self.out_channels = out_channels
-    self.kernel_size = kernel_size
+        if type(kernel_size)==int:
+            kernel_size = (kernel_size,kernel_size)
+        elif (type(kernel_size)==tuple and len(kernel_size)==2):
+            pass
+        else:
+            raise ValueError('Invalid dimensions of kernel_size. It should be either an integer or a tuple of length 2.')
 
-    # Weight initialization.
-    self.weight = empty(out_channels,in_channels,kernel_size[0],kernel_size[1])
-    self.bias = empty(out_channels)
-    uniform_initialization(self.weight, kind='pytorch')
-  
-  def forward(self, *input):
-    self.input = input[0]
-    assert self.input.dim() == 3 or self.input.dim() == 4
-    if(self.input.dim() != 4):
-        self.input = self.input[None, :]
-    batch_size = self.input.shape[0]
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
 
-    unfolded = unfold(self.input, kernel_size=self.kernel_size)
-    convolved = self.weight.view(self.out_channels, -1).unsqueeze(0) @ unfolded + self.bias.view(1, -1, 1).unsqueeze(0)
-    return convolved.view(batch_size, self.out_channels, self.input.shape[2] - self.kernel_size[0] + 1, self.input.shape[3] - self.kernel_size[1] + 1)
+        # Weight initialization.
+        self.weight = empty(out_channels,in_channels,kernel_size[0],kernel_size[1])
+        self.bias = empty(out_channels)
+        uniform_initialization(self.weight, kind='pytorch')
 
-  def backward(self, *gradwrtoutput):
+    def forward(self, *input):
+        self.input = input[0]
+        assert self.input.dim() == 3 or self.input.dim() == 4
+        if(self.input.dim() != 4):
+            self.input = self.input[None, :]
+        batch_size = self.input.shape[0]
 
-    batch_size = self.input.shape[0]
-    output_size = (batch_size, self.out_channels, (self.input.shape[2] - self.kernel_size[0] + 1)*(self.input.shape[3] - self.kernel_size[1] + 1))
-    input_unfolded = unfold(self.input, kernel_size=self.kernel_size)
-    gradwrtoutput_unfolded = gradwrtoutput[0].view(output_size)
-    kernel = self.weight.view(self.out_channels, -1)
-    # print('unfolded gradient w.r.t. output shape: ',gradwrtoutput_unfolded.shape)
-    # print('unfolded input: ',input_unfolded.shape)
-    # print('unfolded kernel shape: ',kernel.shape)
+        unfolded = unfold(self.input, kernel_size=self.kernel_size)
+        convolved = self.weight.view(self.out_channels, -1).unsqueeze(0) @ unfolded + self.bias.view(1, -1, 1).unsqueeze(0)
+        return convolved.view(batch_size, self.out_channels, self.input.shape[2] - self.kernel_size[0] + 1, self.input.shape[3] - self.kernel_size[1] + 1)
 
-    # print('grad wrt input shape: ',(kernel.transpose(0,1) @ gradwrtoutput_unfolded).shape)
+    def backward(self, *gradwrtoutput):
+        batch_size = self.input.shape[0]
+        output_size = (batch_size, self.out_channels, (self.input.shape[2] - self.kernel_size[0] + 1)*(self.input.shape[3] - self.kernel_size[1] + 1))
+        input_unfolded = unfold(self.input, kernel_size=self.kernel_size)
+        gradwrtoutput_unfolded = gradwrtoutput[0].view(output_size)
+        kernel = self.weight.view(self.out_channels, -1)
+        # print('unfolded gradient w.r.t. output shape: ',gradwrtoutput_unfolded.shape)
+        # print('unfolded input: ',input_unfolded.shape)
+        # print('unfolded kernel shape: ',kernel.shape)
 
-    self.weight.grad = (gradwrtoutput_unfolded @ input_unfolded.transpose(1,2)).sum(axis=0).view(self.weight.shape)
-    self.bias.grad = gradwrtoutput_unfolded.sum(axis=(0,2)).view(self.bias.shape)
-    gradwrtinput_unfolded = (kernel.transpose(0,1) @ gradwrtoutput_unfolded)
-    return fold(gradwrtinput_unfolded, output_size=self.input.shape[2:4], kernel_size=self.kernel_size)
+        # print('grad wrt input shape: ',(kernel.transpose(0,1) @ gradwrtoutput_unfolded).shape)
+
+        self.weight.grad = (gradwrtoutput_unfolded @ input_unfolded.transpose(1,2)).sum(axis=0).view(self.weight.shape)
+        self.bias.grad = gradwrtoutput_unfolded.sum(axis=(0,2)).view(self.bias.shape)
+        gradwrtinput_unfolded = (kernel.transpose(0,1) @ gradwrtoutput_unfolded)
+        return fold(gradwrtinput_unfolded, output_size=self.input.shape[2:4], kernel_size=self.kernel_size)
 
 
 class ReLU(Module):
