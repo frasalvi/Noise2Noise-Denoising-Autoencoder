@@ -276,3 +276,56 @@ class Upsampling(Sequential):
                 stride=stride, padding=padding, dilation=dilation)
         self.layers = [upsampling, conv]
         self.print_stuff = False
+
+class Model():
+    def __init__(self, in_channels=3, out_channels=3, lr=1e-3):
+        # instantiate model + optimizer + loss function + any other stuff you need
+        self.model = Sequential(
+                        Conv2d(in_channels=in_channels, out_channels=16, kernel_size=3, stride=2, padding=1),
+                        ReLU(),
+                        Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=2, padding=1),
+                        ReLU(),
+                        Upsampling(scale_factor=2, in_channels=32, out_channels=16, kernel_size=3, stride=1, padding=1),
+                        ReLU(),
+                        Upsampling(scale_factor=2, in_channels=16, out_channels=out_channels, kernel_size=3, stride=1, padding=1),
+                        Sigmoid()
+                        )
+        self.criterion = MSE()
+        self.lr = lr
+
+    def load_pretrained_model(self):
+        ## This loads the parameters saved in bestmodel.pth into the model
+        self.model = load('bestmodel.pth')
+
+    def train(self, train_input, train_target):
+        # train ̇input: tensor of size (N, C, H, W) containing a noisy version of the images.
+        # train target: tensor of size (N, C, H, W) containing another noisy version of the
+        # same images, which only differs from the input by their noise.
+        batch_size = 32
+        nb_epochs = 1
+        self.losses = []
+        avg_loss = 0
+
+        for e in range(nb_epochs):
+            print('Doing epoch %d'%e)
+            for b in range(0, train_input.size(0), batch_size):
+                if b % 5 == 0 and (b+e) > 0:
+                    self.losses.append(avg_loss/5)
+                    avg_loss = 0
+                    b%50 ==0 and print(self.losses[-1])
+                # forward pass
+                output = self.model(train_input[b:b+batch_size])
+                loss = self.criterion(output, train_target[b:b+batch_size])
+                avg_loss+=loss.item()
+                # make step
+                self.model.zero_grad()
+                gradient = self.criterion.backward()
+                gradient = self.model.backward(gradient)
+                for (parameter,_) in self.model.param():
+                    parameter -= parameter.grad*self.lr
+
+    def predict(self, test_input):
+        #:test ̇input: tensor of size (N1, C, H, W) that has to be denoised by the trained
+        # or the loaded network.
+        #: returns a tensor of the size (N1, C, H, W)
+        return self.model(test_input)
