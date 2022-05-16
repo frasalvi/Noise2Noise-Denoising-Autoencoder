@@ -117,6 +117,7 @@ class Conv2d(Module):
 
     def forward(self, *input):
         # Get shapes
+        
         self.input = input[0]
         assert self.input.dim() == 3 or self.input.dim() == 4
         if(self.input.dim() != 4):
@@ -194,9 +195,14 @@ class Sequential(Module):
         self.layers = layers
 
     def forward(self, *input):
-        x = input
+        x = input[0]
+        count = 0
         for layer in self.layers:
-            x = layer.forward(x)
+            print("layer nr "+str(count))
+            print('Before layer: ',x.shape)
+            x = layer.forward(*x)
+            print('After layer: ',x.shape)
+            count += 1
         return x
 
     def backward(self, *gradwrtoutput):
