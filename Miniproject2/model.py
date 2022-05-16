@@ -22,7 +22,7 @@ class Module(object):
         return []
     def __call__(self, *input):
         return self.forward(*input)
-    def zero_grad():
+    def zero_grad(self):
         for param in self.param():
             param[0].grad = 0
 
