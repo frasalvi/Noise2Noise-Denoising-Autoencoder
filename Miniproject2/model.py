@@ -20,6 +20,9 @@ class Module(object):
         return []
     def __call__(self, *input):
         return self.forward(*input)
+    def zero_grad():
+        for param in self.param():
+            param[0].grad = 0
 
 
 def uniform_initialization(tensor, kind='pytorch', gain=1):
