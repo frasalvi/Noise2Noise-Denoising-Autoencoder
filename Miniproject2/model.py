@@ -136,6 +136,7 @@ class Conv2d(Module):
         gradwrtinput_unfolded = (kernel.transpose(0,1) @ gradwrtoutput_unfolded)
         return fold(gradwrtinput_unfolded, output_size=self.input.shape[2:4], kernel_size=self.kernel_size, dilation=self.dilation, padding=self.padding, stride=self.stride)
 
+    
 class ReLU(Module):
     def __init__(self):
         super().__init__()
@@ -186,7 +187,8 @@ class Sequential(Module):
             x = layer.backward(x)
         return x
 
-class NNupsampling():
+
+class NNupsampling(Module):
     def  __init__(self, scale_factor=2):
         self.scale_factor = scale_factor
 
@@ -201,8 +203,8 @@ class NNupsampling():
         # The gradient of a NNupsampling layer is the sum of the upsampled elements in gradwrtoutput.
         # Example: if scale_factor=2, the gradient is the sum of 2x2 areas in gradwrtoutput.
         # First unfold the matrix to easily take the sum
-        unfolded = unfold(gradwrtoutput[0], kernel_size=self.upsampling_factor, stride=self.upsampling_factor)
-        summed = unfolded.view(self.input.shape[0], self.input.shape[1], self.upsampling_factor**2, unfolded.shape[-1]).sum(dim=2)
+        unfolded = unfold(gradwrtoutput[0], kernel_size=self.scale_factor, stride=self.scale_factor)
+        summed = unfolded.view(self.input.shape[0], self.input.shape[1], self.scale_factor**2, unfolded.shape[-1]).sum(dim=2)
         return summed.view(self.input.shape)
 
 class MSE(Module):
