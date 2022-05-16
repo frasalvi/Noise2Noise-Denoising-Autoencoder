@@ -1,5 +1,5 @@
 # From torch: All these modules are either specified in the project file, or confirmed with TA's
-from torch import ones, empty, cat, arange, load, float, set_grad_enabled
+from torch import ones, zeros, empty, cat, arange, load, float, set_grad_enabled
 from torch.nn.functional import fold, unfold
 from functools import reduce
 
@@ -7,6 +7,8 @@ set_grad_enabled(False)
 
 def floor(x):
     return int(x//1)
+
+flatten = lambda deep_list: [item for sublist in deep_list for item in sublist]
 
 class Module(object):
     '''
@@ -62,6 +64,8 @@ class Linear(Module):
     def __init__(self, in_features, out_features):
         self.weight = empty((out_features, in_features))
         self.bias = empty(out_features)
+        self.weight.grad = zeros(self.weight.shape)
+        self.bias.grad = zeros(self.bias.shape)
 
         # Awful, maybe let's think of a cleaner solution later
         uniform_initialization(self.weight)
@@ -73,8 +77,8 @@ class Linear(Module):
 
     def backward(self, *gradwrtoutput):
         grad_output = gradwrtoutput[0]
-        self.weight.grad = grad_output.T @ self.input
-        self.bias.grad = grad_output.sum(axis=0)
+        self.weight.grad += grad_output.T @ self.input
+        self.bias.grad += grad_output.sum(axis=0)
         return grad_output @ self.weight
 
     def param(self):
@@ -104,6 +108,8 @@ class Conv2d(Module):
         # Weight initialization. Replace this with sth. more sophisticated later
         self.weight = empty(out_channels,in_channels,kernel_size[0],kernel_size[1])
         self.bias = empty(out_channels)
+        self.weight.grad = zeros(self.weight.shape)
+        self.bias.grad = zeros(self.bias.shape)
         uniform_initialization(self.weight, kind='pytorch')
 
     def forward(self, *input):
@@ -131,11 +137,14 @@ class Conv2d(Module):
         kernel = self.weight.view(self.out_channels, -1)
 
         # Calculate weight and bias updates
-        self.weight.grad = (gradwrtoutput_unfolded @ input_unfolded.transpose(1,2)).sum(axis=0).view(self.weight.shape)
-        self.bias.grad = gradwrtoutput_unfolded.sum(axis=(0,2)).view(self.bias.shape)
+        self.weight.grad += (gradwrtoutput_unfolded @ input_unfolded.transpose(1,2)).sum(axis=0).view(self.weight.shape)
+        self.bias.grad += gradwrtoutput_unfolded.sum(axis=(0,2)).view(self.bias.shape)
         gradwrtinput_unfolded = (kernel.transpose(0,1) @ gradwrtoutput_unfolded)
         return fold(gradwrtinput_unfolded, output_size=self.input.shape[2:4], kernel_size=self.kernel_size, dilation=self.dilation, padding=self.padding, stride=self.stride)
 
+    def param(self):
+        return [(self.weight, self.weight.grad),
+                (self.bias, self.bias.grad)]
     
 class ReLU(Module):
     def __init__(self):
@@ -150,6 +159,9 @@ class ReLU(Module):
     def backward(self, *gradwrtoutput):
         grad_output = gradwrtoutput[0]
         return self.is_input_bigger_than_zero * grad_output
+    
+    def param(self):
+        return []
 
 
 class Sigmoid(Module):
@@ -169,6 +181,9 @@ class Sigmoid(Module):
         grad_output = gradwrtoutput[0]
         layer_grad = self.activations * (1 - self.activations)
         return layer_grad * grad_output
+    
+    def param(self):
+        return []
 
 
 class Sequential(Module):
@@ -186,7 +201,10 @@ class Sequential(Module):
         for layer in self.layers[::-1]:
             x = layer.backward(x)
         return x
-
+    
+    def param(self):
+        parameter_list = [layer.param() for layer in self.layers]
+        return flatten(parameter_list)
 
 class NNupsampling(Module):
     def  __init__(self, scale_factor=2):
@@ -206,6 +224,9 @@ class NNupsampling(Module):
         unfolded = unfold(gradwrtoutput[0], kernel_size=self.scale_factor, stride=self.scale_factor)
         summed = unfolded.view(self.input.shape[0], self.input.shape[1], self.scale_factor**2, unfolded.shape[-1]).sum(dim=2)
         return summed.view(self.input.shape)
+    
+    def param(self):
+        return []
 
 class MSE(Module):
     def __init__(self):
