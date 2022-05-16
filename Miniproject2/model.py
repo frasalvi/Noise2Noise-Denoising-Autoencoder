@@ -20,7 +20,7 @@ class Module(object):
         return self.forward(*input)
 
 
-def uniform_initialization(tensor, kind='xavier', gain=1):
+def uniform_initialization(tensor, kind='pytorch', gain=1):
     '''
     Performs weight initialization by drawing from a Uniform distribution, 
     according to the chosen method.
