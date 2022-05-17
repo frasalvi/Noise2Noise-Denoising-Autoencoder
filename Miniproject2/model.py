@@ -3,12 +3,9 @@ from turtle import forward
 from torch import ones, zeros, empty, cat, arange, load, float, set_grad_enabled
 from torch.nn.functional import fold, unfold
 from functools import reduce
-from functools import reduce
+from math import floor 
 
 set_grad_enabled(False)
-
-def floor(x):
-    return int(x//1)
 
 flatten = lambda deep_list: [item for sublist in deep_list for item in sublist]
 
@@ -279,7 +276,8 @@ class MSE(Module):
     def backward(self, *gradwrtoutput):
         if not gradwrtoutput:
             gradwrtoutput = [ones(1)]
-        preliminary_loss = -2 * self.last_input_diff / reduce((lambda x, y: x * y), last_input_diff.shape)
+        preliminary_loss = -2 * self.last_input_diff / reduce((lambda x, y: x * y), 
+                                                              self.last_input_diff.shape)
         return gradwrtoutput[0] * preliminary_loss
 
     def param(self):
@@ -322,13 +320,13 @@ class Model():
                         Sigmoid()
                         )
         self.criterion = MSE()
-        self.optimizer = SGD(self.model.param(), lr=1e-3)
+        self.optimizer = SGD(self.model.param(), lr=1e-2)
 
     def load_pretrained_model(self):
         ## This loads the parameters saved in bestmodel.pth into the model
         self.model = load('bestmodel.pth')
 
-    def train(self, train_input, train_target, num_epochs):
+    def train(self, train_input, train_target, num_epochs, **kwargs):
         # train ̇input: tensor of size (N, C, H, W) containing a noisy version of the images.
         # train target: tensor of size (N, C, H, W) containing another noisy version of the
         # same images, which only differs from the input by their noise.
@@ -351,31 +349,12 @@ class Model():
                 self.optimizer.step()
                 
                 # debug
-                b_freq = 5
-                if b % b_freq == 0 and (b+e) > 0:
-                    self.losses.append(avg_loss / b_freq)
-                    avg_loss = 0
-                    b % 50 == 0 and print(self.losses[-1])
-
-
-            # for b in range(0, train_input.size(0), batch_size):
-            #     # debug
-            #     if b % 5 == 0 and (b+e) > 0:
-            #         self.losses.append(avg_loss/5)
-            #         avg_loss = 0
-            #         b%50 ==0 and print(self.losses[-1])
-
-            #     # forward pass
-            #     output = self.model(train_input[b:b+batch_size])
-            #     loss = self.criterion(output, train_target[b:b+batch_size])
-            #     avg_loss+=loss.item()
-
-            #     # make step
-            #     self.model.zero_grad()
-            #     gradient = self.criterion.backward()
-            #     gradient = self.model.backward(gradient)
-            #     for (param, _) in self.model.param():
-            #         param -= self.lr * param.grad
+                if(kwargs['debug']):
+                    b_freq = 5
+                    if b % b_freq == 0 and (b+e) > 0:
+                        self.losses.append(avg_loss / b_freq)
+                        avg_loss = 0
+                        b % 50 == 0 and print(self.losses[-1])
 
     def predict(self, test_input):
         #:test ̇input: tensor of size (N1, C, H, W) that has to be denoised by the trained
