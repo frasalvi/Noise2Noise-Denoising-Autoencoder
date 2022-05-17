@@ -3,7 +3,7 @@ from turtle import forward
 from torch import ones, zeros, empty, cat, arange, load, float, set_grad_enabled
 from torch.nn.functional import fold, unfold
 from functools import reduce
-from math import prod
+from functools import reduce
 
 set_grad_enabled(False)
 
@@ -279,7 +279,7 @@ class MSE(Module):
     def backward(self, *gradwrtoutput):
         if not gradwrtoutput:
             gradwrtoutput = [ones(1)]
-        preliminary_loss = -2 * self.last_input_diff / prod(self.last_input_diff.shape)
+        preliminary_loss = -2 * self.last_input_diff / reduce((lambda x, y: x * y), last_input_diff.shape)
         return gradwrtoutput[0] * preliminary_loss
 
     def param(self):
