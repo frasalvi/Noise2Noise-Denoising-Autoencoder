@@ -1,3 +1,2 @@
-Data/train_data.pkl
-Data/val_data.pkl
-Miniproject2/__pycache__
+*ipynb_checkpoints
+*__pycache__
