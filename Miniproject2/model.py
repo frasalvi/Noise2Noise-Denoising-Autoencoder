@@ -25,7 +25,34 @@ class Module(object):
         return self.forward(*input)
     def zero_grad(self):
         for param in self.param():
-            param[0].grad = zeros(param[0].grad.shape)
+            param[0].grad = zeros(param[0].shape)
+
+
+class Sequential(Module):
+    def __init__(self, *layers):
+        self.layers = layers
+        self.print_stuff = False
+
+    def forward(self, *input):
+        x = input[0]
+        count = 0
+        for layer in self.layers:
+            self.print_stuff and print("layer nr "+str(count))
+            self.print_stuff and print('Before layer: ',x.shape)
+            x = layer.forward(x)
+            self.print_stuff and print('After layer: ',x.shape)
+            count += 1
+        return x
+
+    def backward(self, *gradwrtoutput):
+        x = gradwrtoutput[0]
+        for layer in self.layers[::-1]:
+            x = layer.backward(x)
+        return x
+
+    def param(self):
+        parameter_list = [layer.param() for layer in self.layers]
+        return flatten(parameter_list)
 
 
 def uniform_initialization(tensor, kind='pytorch', gain=1):
@@ -151,6 +178,43 @@ class Conv2d(Module):
         return [(self.weight, self.weight.grad),
                 (self.bias, self.bias.grad)]
 
+
+class NNUpsampling(Module):
+    def  __init__(self, scale_factor=2):
+        self.scale_factor = scale_factor
+
+    def forward(self, *input):
+        # The function repeat_interleave(num_repeats, dim) repeats elements in a matrix
+        # num_repeats times along the specified dimension.
+        self.input = input[0]
+        out = input[0].repeat_interleave(repeats=self.scale_factor, dim=3).repeat_interleave(repeats=self.scale_factor, dim=2)
+        return out
+
+    def backward(self, *gradwrtoutput):
+        # The gradient of a NNUpsampling layer is the sum of the upsampled elements in gradwrtoutput.
+        # Example: if scale_factor=2, the gradient is the sum of 2x2 areas in gradwrtoutput.
+        # First unfold the matrix to easily take the sum
+        unfolded = unfold(gradwrtoutput[0], kernel_size=self.scale_factor, stride=self.scale_factor)
+        summed = unfolded.view(self.input.shape[0], self.input.shape[1], self.scale_factor**2, unfolded.shape[-1]).sum(dim=2)
+        return summed.view(self.input.shape)
+
+    def param(self):
+        return []
+
+
+class Upsampling(Sequential):
+    def  __init__(self, in_channels, out_channels, kernel_size,
+                stride=1, padding=0, dilation=1, scale_factor=2):
+        super()
+
+        upsampling = NNUpsampling(scale_factor=scale_factor)
+        conv = Conv2d(in_channels=in_channels, out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=stride, padding=padding, dilation=dilation)
+        self.layers = [upsampling, conv]
+        self.print_stuff = False
+
+
 class ReLU(Module):
     def __init__(self):
         super().__init__()
@@ -194,54 +258,6 @@ class Sigmoid(Module):
         return []
 
 
-class Sequential(Module):
-    def __init__(self, *layers):
-        self.layers = layers
-        self.print_stuff = False
-
-    def forward(self, *input):
-        x = input[0]
-        count = 0
-        for layer in self.layers:
-            self.print_stuff and print("layer nr "+str(count))
-            self.print_stuff and print('Before layer: ',x.shape)
-            x = layer.forward(x)
-            self.print_stuff and print('After layer: ',x.shape)
-            count += 1
-        return x
-
-    def backward(self, *gradwrtoutput):
-        x = gradwrtoutput[0]
-        for layer in self.layers[::-1]:
-            x = layer.backward(x)
-        return x
-
-    def param(self):
-        parameter_list = [layer.param() for layer in self.layers]
-        return flatten(parameter_list)
-
-class NNUpsampling(Module):
-    def  __init__(self, scale_factor=2):
-        self.scale_factor = scale_factor
-
-    def forward(self, *input):
-        # The function repeat_interleave(num_repeats, dim) repeats elements in a matrix
-        # num_repeats times along the specified dimension.
-        self.input = input[0]
-        out = input[0].repeat_interleave(repeats=self.scale_factor, dim=3).repeat_interleave(repeats=self.scale_factor, dim=2)
-        return out
-
-    def backward(self, *gradwrtoutput):
-        # The gradient of a NNUpsampling layer is the sum of the upsampled elements in gradwrtoutput.
-        # Example: if scale_factor=2, the gradient is the sum of 2x2 areas in gradwrtoutput.
-        # First unfold the matrix to easily take the sum
-        unfolded = unfold(gradwrtoutput[0], kernel_size=self.scale_factor, stride=self.scale_factor)
-        summed = unfolded.view(self.input.shape[0], self.input.shape[1], self.scale_factor**2, unfolded.shape[-1]).sum(dim=2)
-        return summed.view(self.input.shape)
-
-    def param(self):
-        return []
-
 class MSE(Module):
     def __init__(self):
         super()
@@ -265,17 +281,7 @@ class MSE(Module):
     def param(self):
         return []
 
-class Upsampling(Sequential):
-    def  __init__(self, in_channels, out_channels, kernel_size,
-                stride=1, padding=0, dilation=1, scale_factor=2):
-        super()
 
-        upsampling = NNUpsampling(scale_factor=scale_factor)
-        conv = Conv2d(in_channels=in_channels, out_channels=out_channels,
-                kernel_size=kernel_size,
-                stride=stride, padding=padding, dilation=dilation)
-        self.layers = [upsampling, conv]
-        self.print_stuff = False
 
 class Model():
     def __init__(self, in_channels=3, out_channels=3, lr=1e-3):
