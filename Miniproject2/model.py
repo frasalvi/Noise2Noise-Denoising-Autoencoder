@@ -3,6 +3,7 @@ from turtle import forward
 from torch import ones, zeros, empty, cat, arange, load, float, set_grad_enabled
 from torch.nn.functional import fold, unfold
 from functools import reduce
+from math import prod
 
 set_grad_enabled(False)
 
@@ -103,6 +104,9 @@ class Linear(Module):
 
     def forward (self, *input):
         self.input = input[0]
+        # If single element instead of batch
+        if(self.input.dim() != 2):
+            self.input = self.input[None, :]
         output = self.input @ self.weight.T + self.bias
         return output
 
@@ -148,6 +152,7 @@ class Conv2d(Module):
 
         self.input = input[0]
         assert self.input.dim() == 3 or self.input.dim() == 4
+        # If single element instead of batch
         if(self.input.dim() != 4):
             self.input = self.input[None, :]
         self.batch_size = self.input.shape[0]
@@ -187,6 +192,9 @@ class NearestUpsampling(Module):
         # The function repeat_interleave(num_repeats, dim) repeats elements in a matrix
         # num_repeats times along the specified dimension.
         self.input = input[0]
+        # If single element instead of batch
+        if(self.input.dim() != 4):
+            self.input = self.input[None, :]
         out = input[0].repeat_interleave(repeats=self.scale_factor, dim=3).repeat_interleave(repeats=self.scale_factor, dim=2)
         return out
 
@@ -249,9 +257,6 @@ class Sigmoid(Module):
     def backward(self, *gradwrtoutput):
         grad_output = gradwrtoutput[0]
         layer_grad = self.activations * (1 - self.activations)
-        # print(type(layer_grad), type(grad_output))
-        # print(layer_grad.size, grad_output.size)
-        # print(layer_grad, grad_output)
         return layer_grad * grad_output
 
     def param(self):
@@ -261,31 +266,50 @@ class Sigmoid(Module):
 class MSE(Module):
     def __init__(self):
         super()
-        self.batch_size = None
         self.last_input_diff = None
 
-
+    # input, target
     def forward(self, *input):
         assert len(input) == 2
         assert len(input[0]) == len(input[1])
-        self.batch_size = input[0].shape[0]
         self.last_input_diff = (input[1] - input[0])
         return (self.last_input_diff**2).mean()
 
     def backward(self, *gradwrtoutput):
-        preliminary_loss =  ( - 2/self.batch_size)*self.last_input_diff/self.last_input_diff.shape[1]
-        if len(gradwrtoutput) != 1:
-            return preliminary_loss
-        return gradwrtoutput[0]*preliminary_loss
+        if not gradwrtoutput:
+            gradwrtoutput = [ones(1)]
+        preliminary_loss = -2 * self.last_input_diff / prod(self.last_input_diff.shape)
+        return gradwrtoutput[0] * preliminary_loss
 
     def param(self):
         return []
 
 
+class Optimizer():
+    def __init__(self, params):
+        self.params
+    def step(self):
+        raise NotImplementedError
+    def zero_grad(self):
+        for param in self.params():
+            param[0].grad = zeros(param[0].shape) 
+
+
+class SGD(Optimizer):
+    def __init__(self, params, lr, momentum=0):
+        self.params = params
+        self.lr = lr
+
+    def step(self):
+        for (param, _) in self.params:
+            param -= self.lr * param.grad
+
 
 class Model():
-    def __init__(self, in_channels=3, out_channels=3, lr=1e-3):
-        # instantiate model + optimizer + loss function + any other stuff you need
+    def __init__(self):
+        in_channels = 3
+        out_channels = 3
+
         self.model = Sequential(
                         Conv2d(in_channels=in_channels, out_channels=16, kernel_size=3, stride=2, padding=1),
                         ReLU(),
@@ -297,38 +321,60 @@ class Model():
                         Sigmoid()
                         )
         self.criterion = MSE()
-        self.lr = lr
+        self.optimizer = SGD(self.model.param(), lr=1e-3)
 
     def load_pretrained_model(self):
         ## This loads the parameters saved in bestmodel.pth into the model
         self.model = load('bestmodel.pth')
 
-    def train(self, train_input, train_target):
+    def train(self, train_input, train_target, num_epochs):
         # train ̇input: tensor of size (N, C, H, W) containing a noisy version of the images.
         # train target: tensor of size (N, C, H, W) containing another noisy version of the
         # same images, which only differs from the input by their noise.
         batch_size = 32
-        nb_epochs = 1
         self.losses = []
         avg_loss = 0
-
-        for e in range(nb_epochs):
+        
+        for e in range(num_epochs):
             print('Doing epoch %d'%e)
-            for b in range(0, train_input.size(0), batch_size):
-                if b % 5 == 0 and (b+e) > 0:
-                    self.losses.append(avg_loss/5)
-                    avg_loss = 0
-                    b%50 ==0 and print(self.losses[-1])
-                # forward pass
-                output = self.model(train_input[b:b+batch_size])
-                loss = self.criterion(output, train_target[b:b+batch_size])
-                avg_loss+=loss.item()
+            for b, (input, target) in enumerate(zip(train_input.split(batch_size),
+                                                    train_target.split(batch_size))):
+                output = self.model(input)
+                loss = self.criterion(output, target)
+                avg_loss += loss.item()
+
                 # make step
                 self.model.zero_grad()
                 gradient = self.criterion.backward()
                 gradient = self.model.backward(gradient)
-                for (parameter,_) in self.model.param():
-                    parameter -= parameter.grad*self.lr
+                self.optimizer.step()
+                
+                # debug
+                b_freq = 5
+                if b % b_freq == 0 and (b+e) > 0:
+                    self.losses.append(avg_loss / b_freq)
+                    avg_loss = 0
+                    b % 50 == 0 and print(self.losses[-1])
+
+
+            # for b in range(0, train_input.size(0), batch_size):
+            #     # debug
+            #     if b % 5 == 0 and (b+e) > 0:
+            #         self.losses.append(avg_loss/5)
+            #         avg_loss = 0
+            #         b%50 ==0 and print(self.losses[-1])
+
+            #     # forward pass
+            #     output = self.model(train_input[b:b+batch_size])
+            #     loss = self.criterion(output, train_target[b:b+batch_size])
+            #     avg_loss+=loss.item()
+
+            #     # make step
+            #     self.model.zero_grad()
+            #     gradient = self.criterion.backward()
+            #     gradient = self.model.backward(gradient)
+            #     for (param, _) in self.model.param():
+            #         param -= self.lr * param.grad
 
     def predict(self, test_input):
         #:test ̇input: tensor of size (N1, C, H, W) that has to be denoised by the trained
