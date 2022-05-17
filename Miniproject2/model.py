@@ -179,7 +179,7 @@ class Conv2d(Module):
                 (self.bias, self.bias.grad)]
 
 
-class NNUpsampling(Module):
+class NearestUpsampling(Module):
     def  __init__(self, scale_factor=2):
         self.scale_factor = scale_factor
 
@@ -207,7 +207,7 @@ class Upsampling(Sequential):
                 stride=1, padding=0, dilation=1, scale_factor=2):
         super()
 
-        upsampling = NNUpsampling(scale_factor=scale_factor)
+        upsampling = NearestUpsampling(scale_factor=scale_factor)
         conv = Conv2d(in_channels=in_channels, out_channels=out_channels,
                 kernel_size=kernel_size,
                 stride=stride, padding=padding, dilation=dilation)
