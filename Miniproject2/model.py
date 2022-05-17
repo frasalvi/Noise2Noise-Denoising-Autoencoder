@@ -38,7 +38,7 @@ class Sequential(Module):
         x = input[0]
         count = 0
         for layer in self.layers:
-            self.print_stuff and print("layer nr "+str(count))
+            self.print_stuff and print("layer nr " + str(count))
             self.print_stuff and print('Before layer: ',x.shape)
             x = layer.forward(x)
             self.print_stuff and print('After layer: ',x.shape)
@@ -95,12 +95,11 @@ def uniform_initialization(tensor, kind='pytorch', gain=1):
 class Linear(Module):
     def __init__(self, in_features, out_features):
         self.weight = empty((out_features, in_features))
-        self.bias = empty(out_features)
+        self.bias = ones(out_features) * 0.1
         self.weight.grad = zeros(self.weight.shape)
         self.bias.grad = zeros(self.bias.shape)
 
-        # Awful, maybe let's think of a cleaner solution later
-        uniform_initialization(self.weight)
+        uniform_initialization(self.weight, kind='pytorch')
 
     def forward (self, *input):
         self.input = input[0]
@@ -127,7 +126,7 @@ class Conv2d(Module):
         # Implements 2D convolution.
         # Check if kernel_size is correct
         if type(kernel_size)==int:
-            kernel_size = (kernel_size,kernel_size)
+            kernel_size = (kernel_size, kernel_size)
         elif (type(kernel_size)==tuple and len(kernel_size)==2):
             pass
         else:
@@ -142,10 +141,12 @@ class Conv2d(Module):
 
         # Weight initialization. Replace this with sth. more sophisticated later
         self.weight = empty(out_channels,in_channels,kernel_size[0],kernel_size[1])
-        self.bias = empty(out_channels)
+        self.bias = ones(out_channels) * 0.1
         self.weight.grad = zeros(self.weight.shape)
         self.bias.grad = zeros(self.bias.shape)
         uniform_initialization(self.weight, kind='pytorch')
+        # a = 1/((in_channels*kernel_size[0]**2)**0.5)
+        # self.bias.uniform_(-a, a)
 
     def forward(self, *input):
         # Get shapes
