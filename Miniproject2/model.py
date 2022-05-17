@@ -320,7 +320,7 @@ class Model():
                         Sigmoid()
                         )
         self.criterion = MSE()
-        self.optimizer = SGD(self.model.param(), lr=1e-2)
+        self.optimizer = SGD(self.model.param(), lr=1e-0)
 
     def load_pretrained_model(self):
         ## This loads the parameters saved in bestmodel.pth into the model
