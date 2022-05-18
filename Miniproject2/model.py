@@ -1,9 +1,8 @@
 # From torch: All these modules are either specified in the project file, or confirmed with TA's
-from turtle import forward
-from torch import ones, zeros, empty, cat, arange, load, float, set_grad_enabled
+from torch import ones, zeros, empty, load, float, set_grad_enabled
 from torch.nn.functional import fold, unfold
 from functools import reduce
-from math import floor 
+from math import floor
 
 set_grad_enabled(False)
 
@@ -276,8 +275,8 @@ class MSE(Module):
     def backward(self, *gradwrtoutput):
         if not gradwrtoutput:
             gradwrtoutput = [ones(1)]
-        preliminary_loss = -2 * self.last_input_diff / reduce((lambda x, y: x * y), 
-                                                              self.last_input_diff.shape)
+        preliminary_loss = -2 * self.last_input_diff / reduce((lambda x, y: x * y),
+                                                            self.last_input_diff.shape)
         return gradwrtoutput[0] * preliminary_loss
 
     def param(self):
@@ -291,7 +290,7 @@ class Optimizer():
         raise NotImplementedError
     def zero_grad(self):
         for param in self.params():
-            param[0].grad = zeros(param[0].shape) 
+            param[0].grad = zeros(param[0].shape)
 
 
 class SGD(Optimizer):
@@ -333,7 +332,7 @@ class Model():
         batch_size = 32
         self.losses = []
         avg_loss = 0
-        
+
         for e in range(num_epochs):
             print('Doing epoch %d'%e)
             for b, (input, target) in enumerate(zip(train_input.split(batch_size),
@@ -347,7 +346,7 @@ class Model():
                 gradient = self.criterion.backward()
                 gradient = self.model.backward(gradient)
                 self.optimizer.step()
-                
+
                 # debug
                 if(kwargs['debug']):
                     b_freq = 5
