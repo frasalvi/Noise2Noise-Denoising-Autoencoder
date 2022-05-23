@@ -4,7 +4,6 @@ from torch import ones, zeros, empty, load, float, set_grad_enabled
 from torch.nn.functional import fold, unfold
 from functools import reduce
 from math import floor
-from torch.optim._functional import adam
 
 set_grad_enabled(False)
 
@@ -28,6 +27,9 @@ class Module(object):
 
 
 class Sequential(Module):
+    '''
+    Sequential container, combining several layer in order.
+    '''
     def __init__(self, *layers):
         self.layers = layers
         self.print_stuff = False
@@ -91,6 +93,9 @@ def uniform_initialization(tensor, kind='pytorch', gain=1):
 
 
 class Linear(Module):
+    '''
+    Linear module.
+    '''
     def __init__(self, in_features, out_features):
         self.weight = empty((out_features, in_features))
         self.bias = ones(out_features) * 0.1
@@ -119,6 +124,9 @@ class Linear(Module):
 
 
 class Conv2d(Module):
+    '''
+    Convolutional module, applying a 2D convolution to inputs.
+    '''
     def  __init__(self, in_channels, out_channels, kernel_size,
                 stride=1, padding=0, dilation=1):
         # Implements 2D convolution.
@@ -185,6 +193,9 @@ class Conv2d(Module):
 
 
 class NearestUpsampling(Module):
+    '''
+    Upsamples the input via nearest neighbors upsampling.
+    '''
     def  __init__(self, scale_factor=2):
         self.scale_factor = scale_factor
 
@@ -211,6 +222,10 @@ class NearestUpsampling(Module):
 
 
 class Upsampling(Sequential):
+    '''
+    Upsampling module, combining toghether a nearest neighbors upsampling
+    and a 2D convolution.
+    '''
     def  __init__(self, in_channels, out_channels, kernel_size,
                 stride=1, padding=0, dilation=1, scale_factor=2):
         super()
@@ -224,6 +239,9 @@ class Upsampling(Sequential):
 
 
 class ReLU(Module):
+    '''
+    Applies ReLU activation to the inputs.
+    '''
     def __init__(self):
         super().__init__()
         self.is_input_bigger_than_zero = None
@@ -242,6 +260,9 @@ class ReLU(Module):
 
 
 class Sigmoid(Module):
+    '''
+    Applies Sigmoid activation to the inputs.
+    '''
     def __init__(self):
         super().__init__()
         self.activations = None
@@ -264,6 +285,9 @@ class Sigmoid(Module):
 
 
 class MSE(Module):
+    '''
+    Module implementing the Mean Square Error loss function.
+    '''
     def __init__(self):
         super()
         self.last_input_diff = None
@@ -287,13 +311,11 @@ class MSE(Module):
 
 
 class Optimizer():
-    def __init__(self, params):
-        self.params = params
+    '''
+    Abstract class implementing a generic optimizer.
+    '''
     def step(self):
         raise NotImplementedError
-    def zero_grad(self):
-        for param in self.params():
-            param[0].grad = zeros(param[0].shape)
 
 
 class SGD(Optimizer):
@@ -306,34 +328,35 @@ class SGD(Optimizer):
             param -= self.lr * param.grad
 
 
-class ADAM(Optimizer):
-    def __init__(self, params, lr = 1e-3, beta_1_first_moment_avg_coef = 0.9, beta_2_second_moment_avg_coef = 0.999, eps = 1e-8):
-        self.params=params
-        self.lr=lr
-        self.beta_1_first_moment_avg_coef=beta_1_first_moment_avg_coef
-        self.beta_2_second_moment_avg_coef=beta_2_second_moment_avg_coef
-        self.eps=eps
-        self.first_moment = {param: 0 for (param,_) in self.params}
-        self.second_moment = {param: 0 for (param,_) in self.params}
+class Adam(Optimizer):
+    def __init__(self, params, lr=1e-3, beta_1_first_moment_avg_coef=0.9, beta_2_second_moment_avg_coef=0.999, eps=1e-8):
+        self.params = params
+        self.lr = lr
+        self.beta_1_first_moment_avg_coef = beta_1_first_moment_avg_coef
+        self.beta_2_second_moment_avg_coef = beta_2_second_moment_avg_coef
+        self.eps = eps
+        self.first_moment = {param: 0 for (param, _) in self.params}
+        self.second_moment = {param: 0 for (param, _) in self.params}
         self.steps = 0
 
     def step(self):
-        self.steps+=1
-        for (param,_) in self.params:
+        self.steps += 1
+        for (param, _) in self.params:
             cur_grad = param.grad
             # Update momentums
-            self.first_moment[param] = self.beta_1_first_moment_avg_coef*self.first_moment[param] +\
-                                    (1-self.beta_1_first_moment_avg_coef)*cur_grad
-            self.second_moment[param] = self.beta_2_second_moment_avg_coef*self.second_moment[param] +\
-                                    (1-self.beta_2_second_moment_avg_coef)*cur_grad*cur_grad
+            self.first_moment[param] = self.beta_1_first_moment_avg_coef * self.first_moment[param] +\
+                                    (1-self.beta_1_first_moment_avg_coef) * cur_grad
+            self.second_moment[param] = self.beta_2_second_moment_avg_coef * self.second_moment[param] +\
+                                    (1-self.beta_2_second_moment_avg_coef) * cur_grad**2
 
             # Correct biases
-            first_moment_corrected = self.first_moment[param]/(1-self.beta_1_first_moment_avg_coef**self.steps)
-            second_moment_corrected = self.second_moment[param]/(1-self.beta_2_second_moment_avg_coef**self.steps)
+            first_moment_corrected = self.first_moment[param] / (1 - self.beta_1_first_moment_avg_coef**self.steps)
+            second_moment_corrected = self.second_moment[param] / (1 - self.beta_2_second_moment_avg_coef**self.steps)
 
             # Update
-            update_term = (first_moment_corrected)/(second_moment_corrected**0.5 + self.eps)
+            update_term = (first_moment_corrected) / (second_moment_corrected**0.5 + self.eps)
             param -= self.lr * update_term
+
 
 class Model():
     def __init__(self):
@@ -351,7 +374,7 @@ class Model():
                         Sigmoid()
                         )
         self.criterion = MSE()
-        self.optimizer = ADAM(self.model.param(),lr=1e-2)
+        self.optimizer = Adam(self.model.param(), lr=1e-2)
 
     def load_pretrained_model(self):
         ## This loads the parameters saved in bestmodel.pth into the model
