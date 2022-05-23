@@ -1,8 +1,10 @@
 # From torch: All these modules are either specified in the project file, or confirmed with TA's
+from re import S
 from torch import ones, zeros, empty, load, float, set_grad_enabled
 from torch.nn.functional import fold, unfold
 from functools import reduce
-from math import floor 
+from math import floor
+from torch.optim._functional import adam
 
 set_grad_enabled(False)
 
@@ -276,8 +278,8 @@ class MSE(Module):
     def backward(self, *gradwrtoutput):
         if not gradwrtoutput:
             gradwrtoutput = [ones(1)]
-        preliminary_loss = -2 * self.last_input_diff / reduce((lambda x, y: x * y), 
-                                                              self.last_input_diff.shape)
+        preliminary_loss = -2 * self.last_input_diff / reduce((lambda x, y: x * y),
+                                                            self.last_input_diff.shape)
         return gradwrtoutput[0] * preliminary_loss
 
     def param(self):
@@ -286,16 +288,16 @@ class MSE(Module):
 
 class Optimizer():
     def __init__(self, params):
-        self.params
+        self.params = params
     def step(self):
         raise NotImplementedError
     def zero_grad(self):
         for param in self.params():
-            param[0].grad = zeros(param[0].shape) 
+            param[0].grad = zeros(param[0].shape)
 
 
 class SGD(Optimizer):
-    def __init__(self, params, lr, momentum=0):
+    def __init__(self, params, lr):
         self.params = params
         self.lr = lr
 
@@ -303,6 +305,35 @@ class SGD(Optimizer):
         for (param, _) in self.params:
             param -= self.lr * param.grad
 
+
+class ADAM(Optimizer):
+    def __init__(self, params, lr = 1e-3, beta_1_first_moment_avg_coef = 0.9, beta_2_second_moment_avg_coef = 0.999, eps = 1e-8):
+        self.params=params
+        self.lr=lr
+        self.beta_1_first_moment_avg_coef=beta_1_first_moment_avg_coef
+        self.beta_2_second_moment_avg_coef=beta_2_second_moment_avg_coef
+        self.eps=eps
+        self.first_moment = {param: 0 for (param,_) in self.params}
+        self.second_moment = {param: 0 for (param,_) in self.params}
+        self.steps = 0
+
+    def step(self):
+        self.steps+=1
+        for (param,_) in self.params:
+            cur_grad = param.grad
+            # Update momentums
+            self.first_moment[param] = self.beta_1_first_moment_avg_coef*self.first_moment[param] +\
+                                    (1-self.beta_1_first_moment_avg_coef)*cur_grad
+            self.second_moment[param] = self.beta_2_second_moment_avg_coef*self.second_moment[param] +\
+                                    (1-self.beta_2_second_moment_avg_coef)*cur_grad*cur_grad
+
+            # Correct biases
+            first_moment_corrected = self.first_moment[param]/(1-self.beta_1_first_moment_avg_coef**self.steps)
+            second_moment_corrected = self.second_moment[param]/(1-self.beta_2_second_moment_avg_coef**self.steps)
+
+            # Update
+            update_term = (first_moment_corrected)/(second_moment_corrected**0.5 + self.eps)
+            param -= self.lr * update_term
 
 class Model():
     def __init__(self):
@@ -320,7 +351,7 @@ class Model():
                         Sigmoid()
                         )
         self.criterion = MSE()
-        self.optimizer = SGD(self.model.param(), lr=1e-0)
+        self.optimizer = ADAM(self.model.param(),lr=1e-2)
 
     def load_pretrained_model(self):
         ## This loads the parameters saved in bestmodel.pth into the model
@@ -330,10 +361,10 @@ class Model():
         # train ̇input: tensor of size (N, C, H, W) containing a noisy version of the images.
         # train target: tensor of size (N, C, H, W) containing another noisy version of the
         # same images, which only differs from the input by their noise.
-        batch_size = 32
+        batch_size = kwargs.get('batch_size', 32)
         self.losses = []
         avg_loss = 0
-        
+
         for e in range(num_epochs):
             print('Doing epoch %d'%e)
             for b, (input, target) in enumerate(zip(train_input.split(batch_size),
@@ -347,14 +378,12 @@ class Model():
                 gradient = self.criterion.backward()
                 gradient = self.model.backward(gradient)
                 self.optimizer.step()
-                
-                # debug
-                if(kwargs['debug']):
-                    b_freq = 5
-                    if b % b_freq == 0 and (b+e) > 0:
-                        self.losses.append(avg_loss / b_freq)
-                        avg_loss = 0
-                        b % 50 == 0 and print(self.losses[-1])
+
+                b_freq = 5
+                if b % b_freq == 0 and (b+e) > 0:
+                    self.losses.append(avg_loss / b_freq)
+                    avg_loss = 0
+                    b % 50 == 0 and kwargs.get('debug', False) and print(self.losses[-1])
 
     def predict(self, test_input):
         #:test ̇input: tensor of size (N1, C, H, W) that has to be denoised by the trained
