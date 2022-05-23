@@ -1,6 +1,5 @@
 # From torch: All these modules are either specified in the project file, or confirmed with TA's
-from turtle import forward
-from torch import ones, zeros, empty, cat, arange, load, float, set_grad_enabled
+from torch import ones, zeros, empty, load, float, set_grad_enabled
 from torch.nn.functional import fold, unfold
 from functools import reduce
 from math import floor 
@@ -137,17 +136,17 @@ class Conv2d(Module):
         self.stride = stride
 
         # Weight initialization. Replace this with sth. more sophisticated later
-        self.weight = empty(out_channels,in_channels,kernel_size[0],kernel_size[1])
-        self.bias = ones(out_channels) * 0.1
+        self.weight = empty(out_channels, in_channels, kernel_size[0], kernel_size[1])
+        self.bias = empty(out_channels)
+        # self.bias = ones(out_channels) * 0.1
         self.weight.grad = zeros(self.weight.shape)
         self.bias.grad = zeros(self.bias.shape)
         uniform_initialization(self.weight, kind='pytorch')
-        # a = 1/((in_channels*kernel_size[0]**2)**0.5)
-        # self.bias.uniform_(-a, a)
+        a = 1/((in_channels*kernel_size[0]**2)**0.5)
+        self.bias.uniform_(-a, a)
 
     def forward(self, *input):
         # Get shapes
-
         self.input = input[0]
         assert self.input.dim() == 3 or self.input.dim() == 4
         # If single element instead of batch
@@ -161,20 +160,21 @@ class Conv2d(Module):
         self.output_shape = (self.batch_size, self.out_channels, outH, outW)
 
         # Do convolution as matrix-matrix product
-        unfolded = unfold(self.input, kernel_size=self.kernel_size, dilation=self.dilation, padding=self.padding, stride=self.stride)
-        convolved = self.weight.view(self.out_channels, -1).unsqueeze(0) @ unfolded + self.bias.view(1, -1, 1).unsqueeze(0)
-        return convolved.view(self.output_shape)
+        input_unfolded = unfold(self.input, kernel_size=self.kernel_size, dilation=self.dilation, padding=self.padding, stride=self.stride)
+        kernel_unfolded = self.weight.view(1, self.out_channels, -1)
+        output_unfolded = kernel_unfolded @ input_unfolded + self.bias.view(1, self.out_channels, 1)
+        return output_unfolded.view(self.output_shape)
 
     def backward(self, *gradwrtoutput):
         # Get the unfolded versions of the input, gradient w.r.t. output and kernel
         input_unfolded = unfold(self.input, kernel_size=self.kernel_size, dilation=self.dilation, padding=self.padding, stride=self.stride)
         gradwrtoutput_unfolded = gradwrtoutput[0].view(self.batch_size, self.out_channels, self.output_shape[2]*self.output_shape[3])
-        kernel = self.weight.view(self.out_channels, -1)
+        kernel_unfolded = self.weight.view(1, self.out_channels, -1)
 
         # Calculate weight and bias updates
-        self.weight.grad += (gradwrtoutput_unfolded @ input_unfolded.transpose(1,2)).sum(axis=0).view(self.weight.shape)
-        self.bias.grad += gradwrtoutput_unfolded.sum(axis=(0,2)).view(self.bias.shape)
-        gradwrtinput_unfolded = (kernel.transpose(0,1) @ gradwrtoutput_unfolded)
+        self.weight.grad += (gradwrtoutput_unfolded @ input_unfolded.transpose(1, 2)).sum(axis=0).view(self.weight.shape)
+        self.bias.grad += gradwrtoutput_unfolded.sum(axis=(0, 2)).view(self.bias.shape)
+        gradwrtinput_unfolded = (kernel_unfolded.transpose(1, 2) @ gradwrtoutput_unfolded)
         return fold(gradwrtinput_unfolded, output_size=self.input.shape[2:4], kernel_size=self.kernel_size, dilation=self.dilation, padding=self.padding, stride=self.stride)
 
     def param(self):
