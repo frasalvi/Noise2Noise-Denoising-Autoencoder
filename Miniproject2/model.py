@@ -56,7 +56,7 @@ class Sequential(Module):
         return flatten(parameter_list)
 
 
-def uniform_initialization(tensor, kind='pytorch', gain=1):
+def uniform_initialization(tensor, kind='pytorch'):
     '''
     Performs weight initialization by drawing from a Uniform distribution,
     according to the chosen method.
@@ -81,9 +81,9 @@ def uniform_initialization(tensor, kind='pytorch', gain=1):
         in_size *= kernel_size
 
     if(kind == 'xavier'):
-        a = gain * (6 / (in_size + out_size))**0.5
+        a = (6 / (in_size + out_size))**0.5
     elif(kind == 'he'):
-        a = gain * (3 / in_size)**0.5
+        a = (3 / in_size)**0.5
     elif(kind == 'pytorch'):
         a = 1 / in_size**0.5
     else:
@@ -104,7 +104,7 @@ class Linear(Module):
 
         uniform_initialization(self.weight, kind='pytorch')
 
-    def forward (self, *input):
+    def forward(self, *input):
         self.input = input[0]
         # If single element instead of batch
         if(self.input.dim() != 2):
@@ -227,13 +227,13 @@ class Upsampling(Sequential):
     and a 2D convolution.
     '''
     def  __init__(self, in_channels, out_channels, kernel_size,
-                stride=1, padding=0, dilation=1, scale_factor=2):
+                dilation=1, padding=0, scale_factor=2):
         super()
 
         upsampling = NearestUpsampling(scale_factor=scale_factor)
         conv = Conv2d(in_channels=in_channels, out_channels=out_channels,
                 kernel_size=kernel_size,
-                stride=stride, padding=padding, dilation=dilation)
+                stride=1, padding=padding, dilation=dilation)
         self.layers = [upsampling, conv]
         self.print_stuff = False
 
@@ -359,7 +359,7 @@ class Adam(Optimizer):
 
 
 class Model():
-    def __init__(self):
+    def __init__(self, **kwargs):
         in_channels = 3
         out_channels = 3
 
@@ -368,13 +368,20 @@ class Model():
                         ReLU(),
                         Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=2, padding=1),
                         ReLU(),
-                        Upsampling(scale_factor=2, in_channels=32, out_channels=16, kernel_size=3, stride=1, padding=1),
+                        Upsampling(scale_factor=2, in_channels=32, out_channels=16, kernel_size=3, padding=1),
                         ReLU(),
-                        Upsampling(scale_factor=2, in_channels=16, out_channels=out_channels, kernel_size=3, stride=1, padding=1),
+                        Upsampling(scale_factor=2, in_channels=16, out_channels=out_channels, kernel_size=3, padding=1),
                         Sigmoid()
                         )
         self.criterion = MSE()
-        self.optimizer = Adam(self.model.param(), lr=1e-2)
+
+        optimizer = kwargs.get('optimizer', 'Adam')
+        if(optimizer == 'Adam'):
+            self.optimizer = Adam(self.model.param(), lr=1e-2)
+        elif(optimizer == 'SGD'):
+            self.optimizer = SGD(self.model.param(), lr=1)
+        else:
+            raise ValueError('Optimizer not implemented')
 
     def load_pretrained_model(self):
         ## This loads the parameters saved in bestmodel.pth into the model
@@ -384,6 +391,8 @@ class Model():
         # train ̇input: tensor of size (N, C, H, W) containing a noisy version of the images.
         # train target: tensor of size (N, C, H, W) containing another noisy version of the
         # same images, which only differs from the input by their noise.
+        train_input = train_input / 255.0
+        train_target = train_target / 255.0
         batch_size = kwargs.get('batch_size', 32)
         self.losses = []
         avg_loss = 0
@@ -412,4 +421,4 @@ class Model():
         #:test ̇input: tensor of size (N1, C, H, W) that has to be denoised by the trained
         # or the loaded network.
         #: returns a tensor of the size (N1, C, H, W)
-        return self.model(test_input)
+        return self.model(test_input / 255.0) * 255.0
