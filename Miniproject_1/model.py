@@ -198,19 +198,23 @@ class Model():
             # forward pass
             output = self.model(train_input[b:b+self.batch_size] / 255)
             loss = self.criterion(output, train_target[b:b+self.batch_size] / 255) 
-            self.losses[e] += loss.item()/self.batch_size
+            self.losses[e] += loss.item() / self.batch_size
             # make step
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-        print('Epoch %d, loss = %.5f'%(e,self.losses[e]))
+        print('Epoch %d, loss = %.5f'%(e, self.losses[e]))
 
   def predict(self, test_input):
-    #:test ̇input: tensor of size (N1, C, H, W) that has to be denoised by the trained or the loaded network.
+    #:test input: tensor of size (N1, C, H, W) that has to be denoised by the trained or the loaded network.
     #:returns a tensor of the size (N1, C, H, W)
     # Predict model output in batches
     self.model.eval()
-    output = torch.zeros(test_input.shape)
-    for b in range(0, test_input.size(0), self.batch_size):
-      output[b:b+self.batch_size] = self.model(test_input[b:b+self.batch_size] / 255)
-    return 255 * output.to(device)
+    # output = torch.zeros(test_input.shape)
+    # for b in range(0, test_input.size(0), self.batch_size):
+    #   output[b:b+self.batch_size] = self.model(test_input[b:b+self.batch_size] / 255)
+    # return 255 * output.to(device)
+    output = self.model(test_input / 255.0) * 255.0
+    return output.to(test_input.dtype)
+
+    
