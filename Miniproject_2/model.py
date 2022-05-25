@@ -7,8 +7,6 @@ from math import floor
 import pickle
 
 set_default_dtype(float64)
-set_grad_enabled(False)
-
 flatten = lambda deep_list: [item for sublist in deep_list for item in sublist]
 
 class Module(object):
@@ -387,7 +385,7 @@ class Model():
 
     def load_pretrained_model(self):
         ## This loads the parameters saved in bestmodel.pth into the model
-        with open('../bestmodel.pth', 'rb') as fs:
+        with open('./Miniproject_2/bestmodel.pth', 'rb') as fs:
             checkpoint = pickle.load(fs)
         
         self.model.layers[0].weight = checkpoint['conv0.weight']
