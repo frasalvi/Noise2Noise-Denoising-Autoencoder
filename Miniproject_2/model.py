@@ -1,10 +1,11 @@
 # From torch: All these modules are either specified in the project file, or confirmed with TA's
 from re import S
-from torch import ones, zeros, empty, load, float, set_grad_enabled
+from torch import ones, zeros, empty, load, float, set_grad_enabled, set_default_dtype, float64
 from torch.nn.functional import fold, unfold
 from functools import reduce
 from math import floor
 
+set_default_dtype(float64)
 set_grad_enabled(False)
 
 flatten = lambda deep_list: [item for sublist in deep_list for item in sublist]
@@ -399,6 +400,7 @@ class Model():
 
         for e in range(num_epochs):
             print('Doing epoch %d'%e)
+            avg_loss = 0
             for b, (input, target) in enumerate(zip(train_input.split(batch_size),
                                                     train_target.split(batch_size))):
                 output = self.model(input)
@@ -412,13 +414,14 @@ class Model():
                 self.optimizer.step()
 
                 b_freq = 5
-                if b % b_freq == 0 and (b+e) > 0:
+                if b % b_freq == 0 and b > 0:
                     self.losses.append(avg_loss / b_freq)
                     avg_loss = 0
                     b % 50 == 0 and kwargs.get('debug', False) and print(self.losses[-1])
 
     def predict(self, test_input):
-        #:test ̇input: tensor of size (N1, C, H, W) that has to be denoised by the trained
+        #:test input: tensor of size (N1, C, H, W) that has to be denoised by the trained
         # or the loaded network.
         #: returns a tensor of the size (N1, C, H, W)
-        return self.model(test_input / 255.0) * 255.0
+        output = (self.model(test_input / 255.0) * 255.0)
+        return output.to(test_input.dtype)
