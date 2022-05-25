@@ -1,16 +1,14 @@
 # From torch: All these modules are either specified in the project file, or confirmed with TA's
 from re import S
-from torch import ones, zeros, empty, load, float, set_grad_enabled, set_default_dtype, float64
+from torch import ones, zeros, empty, float, set_grad_enabled, set_default_dtype, float64
 from torch.nn.functional import fold, unfold
 from functools import reduce
 from math import floor
+import pickle
 
-<<<<<<< HEAD
 set_default_dtype(float64)
 set_grad_enabled(False)
 
-=======
->>>>>>> 3034615efb34fbcf82a4e6e7b142b80f1d5fed8e
 flatten = lambda deep_list: [item for sublist in deep_list for item in sublist]
 
 class Module(object):
@@ -389,14 +387,25 @@ class Model():
 
     def load_pretrained_model(self):
         ## This loads the parameters saved in bestmodel.pth into the model
-        self.model = load('bestmodel.pth')
+        with open('../bestmodel.pth', 'rb') as fs:
+            checkpoint = pickle.load(fs)
+        
+        self.model.layers[0].weight = checkpoint['conv0.weight']
+        self.model.layers[0].bias = checkpoint['conv0.bias']
+        self.model.layers[2].weight = checkpoint['conv1.weight']
+        self.model.layers[2].bias = checkpoint['conv1.bias']
+        self.model.layers[4].layers[1].weight = checkpoint['conv2.weight']
+        self.model.layers[4].layers[1].bias = checkpoint['conv2.bias']
+        self.model.layers[6].layers[1].weight = checkpoint['conv3.weight']
+        self.model.layers[6].layers[1].bias = checkpoint['conv3.bias']
+        self.losses = checkpoint['losses']
 
     def train(self, train_input, train_target, num_epochs, **kwargs):
         # train ̇input: tensor of size (N, C, H, W) containing a noisy version of the images.
         # train target: tensor of size (N, C, H, W) containing another noisy version of the
         # same images, which only differs from the input by their noise.
-        train_input = train_input / 255.0
-        train_target = train_target / 255.0
+        train_input = train_input.double() / 255.0
+        train_target = train_target.double() / 255.0
         batch_size = kwargs.get('batch_size', 32)
         self.losses = []
         avg_loss = 0
@@ -426,5 +435,5 @@ class Model():
         #:test input: tensor of size (N1, C, H, W) that has to be denoised by the trained
         # or the loaded network.
         #: returns a tensor of the size (N1, C, H, W)
-        output = (self.model(test_input / 255.0) * 255.0)
+        output = (self.model(test_input.double() / 255.0) * 255.0)
         return output.to(test_input.dtype)
