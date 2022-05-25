@@ -214,7 +214,7 @@ class Model():
     # for b in range(0, test_input.size(0), self.batch_size):
     #   output[b:b+self.batch_size] = self.model(test_input[b:b+self.batch_size] / 255)
     # return 255 * output.to(device)
-    output = self.model(test_input / 255.0) * 255.0
+    output = (self.model(test_input / 255.0) * 255.0).clip(0, 255)
     return output.to(test_input.dtype)
 
     
