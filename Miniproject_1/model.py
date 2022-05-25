@@ -15,23 +15,23 @@ class TNet(nn.Module):
     super().__init__()
     self.conv1 = nn.Conv2d(in_channels, 16, kernel_size=3, stride=1, padding=1)
     self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
-    self.norm1 = torch.nn.BatchNorm2d(16) if batchnorm else lambda x: x 
+    self.norm1 = torch.nn.BatchNorm2d(16) if batchnorm else lambda x: x
     self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
     self.pool2 = nn.MaxPool2d(kernel_size=4, stride=4)
-    self.norm2 = torch.nn.BatchNorm2d(32) if batchnorm else lambda x: x 
+    self.norm2 = torch.nn.BatchNorm2d(32) if batchnorm else lambda x: x
     self.conv3 = nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1)
     self.pool3 = nn.MaxPool2d(kernel_size=4, stride=4)
-    self.norm3 = torch.nn.BatchNorm2d(32) if batchnorm else lambda x: x 
+    self.norm3 = torch.nn.BatchNorm2d(32) if batchnorm else lambda x: x
 
     self.up4 = nn.Upsample(scale_factor=4)
     self.conv4 = nn.Conv2d(64, 32, kernel_size=3, stride=1, padding=1)
-    self.norm4 = torch.nn.BatchNorm2d(64) if batchnorm else lambda x: x 
+    self.norm4 = torch.nn.BatchNorm2d(64) if batchnorm else lambda x: x
     self.up5 = nn.Upsample(scale_factor=4)
     self.conv5 = nn.Conv2d(64, 16, kernel_size=3, stride=1, padding=1)
-    self.norm5 = torch.nn.BatchNorm2d(64) if batchnorm else lambda x: x 
+    self.norm5 = torch.nn.BatchNorm2d(64) if batchnorm else lambda x: x
     self.up6 = nn.Upsample(scale_factor=2)
     self.conv6 = nn.Conv2d(32, 3, kernel_size=3, stride=1, padding=1)
-    self.norm6 = torch.nn.BatchNorm2d(3) if batchnorm else lambda x: x 
+    self.norm6 = torch.nn.BatchNorm2d(3) if batchnorm else lambda x: x
     self.conv7 = nn.Conv2d(6, out_channels, kernel_size=3, stride=1, padding=1)
 
     self.ReLU = lambda tens: nn.functional.leaky_relu(tens, negative_slope=0.1)
@@ -131,7 +131,7 @@ class UNet(nn.Module):
         out = self._block6(concat1)
         return out
 
-        
+
 class BaseNet(nn.Module):
 
   def __init__(self, in_channels=3, out_channels=3):
@@ -149,7 +149,7 @@ class BaseNet(nn.Module):
     self.upconv4 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=1)
     self.upconv5 = nn.ConvTranspose2d(32, 32, kernel_size=5, stride=1)
     self.upconv6 = nn.ConvTranspose2d(32, out_channels, kernel_size=5, stride=1)
-    
+
     self.ReLU = nn.ReLU()
 
   def forward(self, x):
@@ -178,15 +178,15 @@ class Model():
     self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
     self.criterion = torch.nn.MSELoss()
     self.losses = []
-    
+
   def load_pretrained_model(self):
     ## This loads the parameters saved in bestmodel.pth into the model
-    checkpoint = torch.load('./bestmodel.pth', map_location=device)
+    checkpoint = torch.load('./Miniproject_1/bestmodel.pth', map_location=device)
     self.model.load_state_dict(checkpoint['model'])
     self.optimizer.load_state_dict(checkpoint['optimizer'])
     self.lr = checkpoint['lr']
     self.batch_size = checkpoint['batch_size']
-    self.losses = checkpoint['losses']
+    # self.losses = checkpoint['losses']
 
   def train(self, train_input, train_target, num_epochs):
     #:train_input: tensor of size (N, C, H, W) containing a noisy version of the images
@@ -197,7 +197,7 @@ class Model():
         for b in range(0, train_input.size(0), self.batch_size):
             # forward pass
             output = self.model(train_input[b:b+self.batch_size] / 255)
-            loss = self.criterion(output, train_target[b:b+self.batch_size] / 255) 
+            loss = self.criterion(output, train_target[b:b+self.batch_size] / 255)
             self.losses[e] += loss.item() / self.batch_size
             # make step
             self.optimizer.zero_grad()
@@ -217,4 +217,3 @@ class Model():
     output = (self.model(test_input / 255.0) * 255.0).clip(0, 255)
     return output.to(test_input.dtype)
 
-    
