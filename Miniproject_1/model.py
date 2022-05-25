@@ -2,6 +2,7 @@
 
 import torch
 from torch import nn
+import pathlib
 
 if torch.cuda.is_available():
   device = torch.device('cuda')
@@ -180,8 +181,10 @@ class Model():
     self.losses = []
 
   def load_pretrained_model(self):
+    parent_path = str(pathlib.Path(__file__).parent.resolve())
+    best_model_path = parent_path + '/bestmodel.pth'
     ## This loads the parameters saved in bestmodel.pth into the model
-    checkpoint = torch.load('./Miniproject_1/bestmodel.pth', map_location=device)
+    checkpoint = torch.load(best_model_path, map_location=device)
     self.model.load_state_dict(checkpoint['model'])
     self.optimizer.load_state_dict(checkpoint['optimizer'])
     self.lr = checkpoint['lr']

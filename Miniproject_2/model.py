@@ -5,6 +5,7 @@ from torch.nn.functional import fold, unfold
 from functools import reduce
 from math import floor
 import pickle
+import pathlib
 
 set_default_dtype(float64)
 flatten = lambda deep_list: [item for sublist in deep_list for item in sublist]
@@ -385,9 +386,11 @@ class Model():
 
     def load_pretrained_model(self):
         ## This loads the parameters saved in bestmodel.pth into the model
-        with open('./Miniproject_2/bestmodel.pth', 'rb') as fs:
+        parent_path = str(pathlib.Path(__file__).parent.resolve())
+        best_model_path = parent_path + '/bestmodel.pth'
+        with open(best_model_path, 'rb') as fs:
             checkpoint = pickle.load(fs)
-        
+
         self.model.layers[0].weight = checkpoint['conv0.weight']
         self.model.layers[0].bias = checkpoint['conv0.bias']
         self.model.layers[2].weight = checkpoint['conv1.weight']
