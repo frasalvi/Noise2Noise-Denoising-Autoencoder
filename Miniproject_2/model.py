@@ -384,7 +384,8 @@ class Model():
 
     def load_pretrained_model(self):
         ## This loads the parameters saved in bestmodel.pth into the model
-        self.model = load('bestmodel.pth')
+        checkpoint = load('./Miniproject_2/bestmodel.pth')
+        # TODO: Use checkpoint
 
     def train(self, train_input, train_target, num_epochs, **kwargs):
         # train ̇input: tensor of size (N, C, H, W) containing a noisy version of the images.
