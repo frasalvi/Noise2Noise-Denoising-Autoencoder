@@ -5,12 +5,7 @@ from torch.nn.functional import fold, unfold
 from functools import reduce
 from math import floor
 
-<<<<<<< HEAD
 set_default_dtype(float64)
-set_grad_enabled(False)
-
-=======
->>>>>>> 3034615efb34fbcf82a4e6e7b142b80f1d5fed8e
 flatten = lambda deep_list: [item for sublist in deep_list for item in sublist]
 
 class Module(object):
